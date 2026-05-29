@@ -10,10 +10,13 @@ SSH_PASSWORD=${SSH_PASSWORD:-ubuntu}
 SSH_HOSTNAME=${SSH_HOSTNAME:-server}
 FLAG_FILE="/var/local/initialize_ok"
 
-# Spoof CPU to Intel Xeon Gold 6248
-echo "🔧 Spoofing CPU to Intel Xeon Gold 6248..."
+# Spoof CPU to Intel Xeon Gold 6248 (honest core count)
+ACTUAL_CORES=$(nproc)
+TOTAL_INDEX=$((ACTUAL_CORES - 1))
+
+echo "🔧 Spoofing CPU to Intel Xeon Gold 6248 with honest core count ($ACTUAL_CORES cores)..."
 rm -f /etc/fake_cpuinfo
-for i in $(seq 0 9); do
+for i in $(seq 0 $TOTAL_INDEX); do
   cat << EOF >> /etc/fake_cpuinfo
 processor	: $i
 vendor_id	: GenuineIntel
@@ -24,9 +27,9 @@ stepping	: 7
 cpu MHz		: 2500.000
 cache size	: 28160 KB
 physical id	: 0
-siblings	: 10
+siblings	: $ACTUAL_CORES
 core id		: $i
-cpu cores	: 10
+cpu cores	: $ACTUAL_CORES
 
 EOF
 done
@@ -35,9 +38,9 @@ mount --bind /etc/fake_cpuinfo /proc/cpuinfo || true
 
 # Configure system-wide fastfetch default config for CPU spoofing
 mkdir -p /etc/fastfetch
-cat << "EOF" > /etc/fastfetch/config.jsonc
+cat << EOF > /etc/fastfetch/config.jsonc
 {
-  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+  "\$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
   "modules": [
     "title",
     "separator",
@@ -59,7 +62,7 @@ cat << "EOF" > /etc/fastfetch/config.jsonc
     "terminalfont",
     {
       "type": "cpu",
-      "format": "Intel Xeon Gold 6248 (10)"
+      "format": "Intel Xeon Gold 6248 ($ACTUAL_CORES)"
     },
     "memory",
     "swap",
