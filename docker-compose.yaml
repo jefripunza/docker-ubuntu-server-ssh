@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  ubuntu-ssh:
+    image: jefriherditriyanto/vps-ubuntu-server:latest
+    runtime: sysbox-runc
+    # ports:
+    #   - "2222:22"
+    #   - "6080:6080"
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
