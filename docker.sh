@@ -5,7 +5,7 @@ APP_NAME="$IMAGE_NAME-app"
 
 # Konfigurasi SSH User dan Password (bisa disesuaikan atau di-override via env)
 SSH_PORT=${SSH_PORT:-2222}
-NOVNC_PORT=${NOVNC_PORT:-6080}
+TTYD_PORT=${TTYD_PORT:-6080}
 SSH_USER=${SSH_USER:-ubuntu}
 SSH_PASSWORD=${SSH_PASSWORD:-ubuntu}
 SSH_HOSTNAME=${SSH_HOSTNAME:-server}
@@ -28,7 +28,7 @@ fi
 echo "🚀 Running new container..."
 docker run -d --privileged \
   -p "$SSH_PORT":22 \
-  -p "$NOVNC_PORT":6080 \
+  -p "$TTYD_PORT":6080 \
   --name $APP_NAME \
   --hostname "$SSH_HOSTNAME" \
   -e SSH_USER="$SSH_USER" \

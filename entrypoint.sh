@@ -68,8 +68,10 @@ timeout 15 sh -c 'until docker info >/dev/null 2>&1; do sleep 1; done'
 
 # End
 echo " ------------------------------------------"
-echo " SSH: $SSH_USER@localhost:$SSH_PORT"
+echo " 🔌 SSH: $SSH_USER@localhost:$SSH_PORT"
+echo " 💻 Terminal: http://localhost:$TTYD_PORT"
+echo " ------------------------------------------"
 
-# Run noVNC WebSocket server
-echo "🚀 Starting noVNC WebSocket server..."
-exec websockify --web=/usr/share/novnc 6080 localhost:5901
+# Run ttyd server
+echo "🚀 Starting ttyd server..."
+exec ttyd -c "$SSH_USER":"$SSH_PASSWORD" -p 6080 bash
