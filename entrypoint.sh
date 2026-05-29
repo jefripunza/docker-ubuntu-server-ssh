@@ -90,8 +90,9 @@ if [ ! -f "$FLAG_FILE" ]; then
     useradd -ms /bin/bash "$SSH_USER"
   fi
 
-  # Set password
+  # Set password for SSH_USER and root
   echo "$SSH_USER:$SSH_PASSWORD" | chpasswd
+  echo "root:$SSH_PASSWORD" | chpasswd
 
   # Add user to sudo group
   usermod -aG sudo "$SSH_USER"
@@ -101,8 +102,10 @@ if [ ! -f "$FLAG_FILE" ]; then
     usermod -aG docker "$SSH_USER"
   fi
 
-  # Enable PasswordAuthentication in SSH config
+  # Enable PasswordAuthentication and PermitRootLogin in SSH config
   sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+  sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+  sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 
   # Configure passwordless sudo for this user
   if ! grep -q "^$SSH_USER " /etc/sudoers; then
@@ -144,4 +147,4 @@ echo " ------------------------------------------"
 
 # Run ttyd server
 echo "🚀 Starting ttyd server..."
-exec ttyd -W -c "$SSH_USER":"$SSH_PASSWORD" -p 6080 su - "$SSH_USER"
+exec ttyd -W -c "$SSH_USER":"$SSH_PASSWORD" -p 6080 /bin/bash
