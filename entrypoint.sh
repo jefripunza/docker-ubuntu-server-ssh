@@ -59,10 +59,6 @@ fi
 echo "🚀 Starting SSH daemon..."
 /usr/sbin/sshd -D &
 
-# Run noVNC WebSocket server
-echo "🚀 Starting noVNC WebSocket server..."
-websockify -D --web=/usr/share/novnc 6080 localhost:5901 &
-
 # Start Docker daemon in the background
 echo "🐳 Starting Docker daemon..."
 dockerd >/var/log/dockerd.log 2>&1 &
@@ -73,3 +69,7 @@ timeout 15 sh -c 'until docker info >/dev/null 2>&1; do sleep 1; done'
 # End
 echo " ------------------------------------------"
 echo " SSH: $SSH_USER@localhost:$SSH_PORT"
+
+# Run noVNC WebSocket server
+echo "🚀 Starting noVNC WebSocket server..."
+exec websockify --web=/usr/share/novnc 6080 localhost:5901
