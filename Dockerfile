@@ -1,6 +1,6 @@
 FROM earthbuild/dind:ubuntu-24.04-docker-28.5.2-1 as base
 LABEL maintainer="Jefri Herdi Triyanto <jefriherditriyanto@gmail.com>"
-LABEL description="Ubuntu Server SSH - Easy setup ubuntu server on Docker with SSH"
+LABEL description="VPS Ubuntu Server - Easy setup ubuntu server on Docker with SSH & TTYD"
 
 RUN apt-get update && apt-get install -y \
   software-properties-common \
@@ -25,6 +25,6 @@ RUN apt-get update && apt-get install -y \
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-EXPOSE 22
+EXPOSE 22 6080
 
 ENTRYPOINT ["/entrypoint.sh"]

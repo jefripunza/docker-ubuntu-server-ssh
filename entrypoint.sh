@@ -35,7 +35,11 @@ cpu cores	: $ACTUAL_CORES
 EOF
 done
 umount /proc/cpuinfo >/dev/null 2>&1 || true
-mount --bind /etc/fake_cpuinfo /proc/cpuinfo || true
+if mount --bind /etc/fake_cpuinfo /proc/cpuinfo >/dev/null 2>&1 || sudo mount --bind /etc/fake_cpuinfo /proc/cpuinfo >/dev/null 2>&1; then
+  echo "✅ CPU spoofing applied successfully."
+else
+  echo "⚠️ CPU spoofing via bind-mount failed (insufficient privileges / non-privileged container). Falling back to native /proc/cpuinfo."
+fi
 
 # Configure system-wide fastfetch default config for CPU spoofing
 mkdir -p /etc/fastfetch
