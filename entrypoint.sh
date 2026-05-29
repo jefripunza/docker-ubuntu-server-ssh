@@ -74,4 +74,4 @@ echo " ------------------------------------------"
 
 # Run ttyd server
 echo "🚀 Starting ttyd server..."
-exec ttyd -c "$SSH_USER":"$SSH_PASSWORD" -p 6080 bash
+exec ttyd -W -c "$SSH_USER":"$SSH_PASSWORD" -p 6080 bash

@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
   sudo \
   curl \
   net-tools \
+  iputils-ping \
   vim \
   wget \
   htop \
