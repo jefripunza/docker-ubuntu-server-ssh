@@ -11,15 +11,32 @@ SSH_USER=${SSH_USER:-ubuntu}
 SSH_PASSWORD=${SSH_PASSWORD:-ubuntu}
 SSH_HOSTNAME=${SSH_HOSTNAME:-server}
 
-echo "📋 Select option:"
-echo "1) Build & Run locally (development)"
-echo "2) Build & Push to Docker Hub"
-read -p "Choice [1/2]: " choice
+while true; do
+  echo "📋 Select option:"
+  echo "1) Build & Run locally (development)"
+  echo "2) Build & Push to Docker Hub"
+  read -p "Choice [1/2]: " choice
+  if [[ "$choice" == "1" || "$choice" == "2" ]]; then
+    break
+  else
+    echo "⚠️ Invalid choice. Please select 1 or 2."
+    echo
+  fi
+done
 
 if [ "$choice" = "2" ]; then
   DOCKER_HUB_REPO="jefriherditriyanto/$IMAGE_NAME"
-  echo "🔨 Building and pushing multi-architecture Docker image using buildx to $DOCKER_HUB_REPO:latest..."
-  docker buildx build --no-cache --platform linux/amd64,linux/arm64 -t $DOCKER_HUB_REPO:latest . --push
+  while true; do
+    read -p "Enter version tag (e.g., 1.0.0): " version_tag
+    if [[ "$version_tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      break
+    else
+      echo "⚠️ Invalid version format. Please use 'x.x.x' format (e.g., 1.0.0)."
+      echo
+    fi
+  done
+  echo "🔨 Building and pushing multi-architecture Docker image using buildx to $DOCKER_HUB_REPO:latest and $DOCKER_HUB_REPO:$version_tag..."
+  docker buildx build --no-cache --platform linux/amd64,linux/arm64 -t $DOCKER_HUB_REPO:latest -t $DOCKER_HUB_REPO:$version_tag . --push
 else
   # Build multi-architecture Docker image using buildx
   echo "🔨 Building multi-architecture Docker image using buildx..."
