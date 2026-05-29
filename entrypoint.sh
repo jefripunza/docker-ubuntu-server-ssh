@@ -5,6 +5,7 @@ rm /entrypoint.sh
 
 # Default values if environment variables are not set
 SSH_PORT=${SSH_PORT:-2222}
+TTYD_PORT=${TTYD_PORT:-6080}
 SSH_USER=${SSH_USER:-ubuntu}
 SSH_PASSWORD=${SSH_PASSWORD:-ubuntu}
 SSH_HOSTNAME=${SSH_HOSTNAME:-server}
