@@ -10,6 +10,67 @@ SSH_PASSWORD=${SSH_PASSWORD:-ubuntu}
 SSH_HOSTNAME=${SSH_HOSTNAME:-server}
 FLAG_FILE="/var/local/initialize_ok"
 
+# Spoof CPU to Intel Xeon Gold 6248
+echo "🔧 Spoofing CPU to Intel Xeon Gold 6248..."
+rm -f /etc/fake_cpuinfo
+for i in $(seq 0 9); do
+  cat << EOF >> /etc/fake_cpuinfo
+processor	: $i
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 85
+model name	: Intel(R) Xeon(R) Gold 6248 CPU @ 2.50GHz
+stepping	: 7
+cpu MHz		: 2500.000
+cache size	: 28160 KB
+physical id	: 0
+siblings	: 10
+core id		: $i
+cpu cores	: 10
+
+EOF
+done
+umount /proc/cpuinfo >/dev/null 2>&1 || true
+mount --bind /etc/fake_cpuinfo /proc/cpuinfo || true
+
+# Configure system-wide fastfetch default config for CPU spoofing
+mkdir -p /etc/fastfetch
+cat << "EOF" > /etc/fastfetch/config.jsonc
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+  "modules": [
+    "title",
+    "separator",
+    "os",
+    "host",
+    "kernel",
+    "uptime",
+    "packages",
+    "shell",
+    "display",
+    "de",
+    "wm",
+    "wmtheme",
+    "theme",
+    "icons",
+    "font",
+    "cursor",
+    "terminal",
+    "terminalfont",
+    {
+      "type": "cpu",
+      "format": "Intel Xeon Gold 6248 (10)"
+    },
+    "memory",
+    "swap",
+    "disk",
+    "localip",
+    "locale",
+    "break"
+  ]
+}
+EOF
+
 # Make sure SSH run directory exists
 mkdir -p /var/run/sshd
 
