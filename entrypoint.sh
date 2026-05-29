@@ -112,6 +112,52 @@ if [ ! -f "$FLAG_FILE" ]; then
     echo "$SSH_USER    ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
   fi
 
+  # Generate SSH key pair for SSH_USER to enable passwordless localhost SSH elevation under gVisor
+  mkdir -p /home/$SSH_USER/.ssh
+  ssh-keygen -t rsa -N "" -f /home/$SSH_USER/.ssh/id_rsa
+  chown -R $SSH_USER:$SSH_USER /home/$SSH_USER/.ssh
+  chmod 700 /home/$SSH_USER/.ssh
+  chmod 600 /home/$SSH_USER/.ssh/id_rsa
+
+  # Add it to root's authorized_keys
+  mkdir -p /root/.ssh
+  cat /home/$SSH_USER/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys
+  chmod 700 /root/.ssh
+  chmod 600 /root/.ssh/authorized_keys
+
+  # Create a custom sudo wrapper to bypass gVisor's SUID limitation via localhost SSH
+  cat << EOF > /usr/local/bin/sudo
+#!/bin/bash
+
+# If already root, run directly
+if [ "\$(id -u)" -eq 0 ]; then
+    exec "\$@"
+fi
+
+# If no arguments, or if 'su', run a root login shell
+if [ \$# -eq 0 ] || [ "\$1" = "su" ]; then
+    exec ssh -i "\$HOME/.ssh/id_rsa" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -t root@127.0.0.1
+fi
+
+# Build ssh flags
+SSH_FLAGS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+if [ -t 0 ]; then
+    SSH_FLAGS="\$SSH_FLAGS -t"
+else
+    SSH_FLAGS="\$SSH_FLAGS -T"
+fi
+
+# Properly escape arguments to prevent remote shell splitting/unescaping issues
+escaped_cmd=""
+for arg in "\$@"; do
+    escaped_cmd="\$escaped_cmd \$(printf '%q' "\$arg")"
+done
+
+exec ssh -i "\$HOME/.ssh/id_rsa" \$SSH_FLAGS root@127.0.0.1 "\$escaped_cmd"
+EOF
+
+  chmod +x /usr/local/bin/sudo
+
   # Create the initialization flag file (format: YYYY-mm-dd_HH-mm-ss)
   mkdir -p "$(dirname "$FLAG_FILE")"
   date "+%Y-%m-%d_%H-%M-%S" > "$FLAG_FILE"
@@ -147,4 +193,4 @@ echo " ------------------------------------------"
 
 # Run ttyd server
 echo "🚀 Starting ttyd server..."
-exec ttyd -W -c "$SSH_USER":"$SSH_PASSWORD" -p 6080 /bin/bash
+exec ttyd -W -c "$SSH_USER":"$SSH_PASSWORD" -p 6080 su - "$SSH_USER"
