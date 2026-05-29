@@ -109,12 +109,6 @@ if [ ! -f "$FLAG_FILE" ]; then
     echo "$SSH_USER    ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
   fi
 
-  # Set hostname inside FHS if writable
-  echo "$SSH_HOSTNAME" > /etc/hostname || true
-  if ! grep -q "$SSH_HOSTNAME" /etc/hosts; then
-    echo "127.0.0.1 $SSH_HOSTNAME" >> /etc/hosts || true
-  fi
-
   # Create the initialization flag file (format: YYYY-mm-dd_HH-mm-ss)
   mkdir -p "$(dirname "$FLAG_FILE")"
   date "+%Y-%m-%d_%H-%M-%S" > "$FLAG_FILE"
@@ -122,6 +116,13 @@ if [ ! -f "$FLAG_FILE" ]; then
   echo "✅ Initialization complete at $(cat "$FLAG_FILE")."
 else
   echo "🚀 Container already initialized at $(cat "$FLAG_FILE"), skipping setup."
+fi
+
+# Dynamically set active system hostname in UTS namespace and update hosts/hostname files
+hostname "$SSH_HOSTNAME" 2>/dev/null || true
+echo "$SSH_HOSTNAME" > /etc/hostname || true
+if ! grep -q "$SSH_HOSTNAME" /etc/hosts; then
+  echo "127.0.0.1 $SSH_HOSTNAME" >> /etc/hosts || true
 fi
 
 # Run the SSH daemon in the foreground

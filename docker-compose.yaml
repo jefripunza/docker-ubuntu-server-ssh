@@ -2,8 +2,10 @@ version: '3.8'
 
 services:
   ubuntu-ssh:
-    image: jefriherditriyanto/vps-ubuntu-server:latest
-    runtime: sysbox-runc
+    image: jefriherditriyanto/vps-ubuntu-server:1.0.2
+    # https://gvisor.dev/docs/user_guide/install/
+    runtime: runsc
+    privileged: true
     # ports:
     #   - "2222:22"
     #   - "6080:6080"
@@ -12,3 +14,5 @@ services:
         limits:
           cpus: '2.0'
           memory: 2G
+    storage_opt:
+      size: '60G'
