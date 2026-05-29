@@ -2,14 +2,10 @@ version: '3.8'
 
 services:
   ubuntu-ssh:
-    build: .
     image: jefriherditriyanto/vps-ubuntu-server:1.0.5
     # https://gvisor.dev/docs/user_guide/install/
     runtime: runsc
     privileged: true
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
     # ports:
     #   - "2222:22"
     #   - "6080:6080"

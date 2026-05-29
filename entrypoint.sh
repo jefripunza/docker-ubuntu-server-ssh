@@ -158,6 +158,9 @@ EOF
 
   chmod +x /usr/local/bin/sudo
 
+  # Force Docker Desktop macOS DNS Gateway inside gVisor
+  echo "nameserver 192.168.65.2" > /etc/resolv.conf
+
   # Create the initialization flag file (format: YYYY-mm-dd_HH-mm-ss)
   mkdir -p "$(dirname "$FLAG_FILE")"
   date "+%Y-%m-%d_%H-%M-%S" > "$FLAG_FILE"

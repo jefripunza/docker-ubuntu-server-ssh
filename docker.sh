@@ -88,8 +88,6 @@ else
   docker run -d --privileged \
     --cpus="2.0" \
     --memory="2g" \
-    --dns 8.8.8.8 \
-    --dns 1.1.1.1 \
     -p "$SSH_PORT":22 \
     -p "$TTYD_PORT":6080 \
     --name $CONTAINER_NAME \
