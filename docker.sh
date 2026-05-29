@@ -13,9 +13,9 @@ SSH_HOSTNAME=${SSH_HOSTNAME:-server}
 # Hapus file-file yang tidak perlu
 echo "🗑️ Cleaning up..."
 
-# Build ulang image
-echo "🔨 Building Docker image..."
-docker build --no-cache -t $IMAGE_NAME .
+# Build ulang image dengan multi-arsitektur menggunakan buildx
+echo "🔨 Building multi-architecture Docker image using buildx..."
+docker buildx build --no-cache --platform linux/amd64,linux/arm64 -t $IMAGE_NAME . --load
 
 # Cek apakah container sudah ada
 if [ "$(docker ps -aq -f name=^${APP_NAME}$)" ]; then
