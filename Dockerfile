@@ -6,17 +6,18 @@ RUN apt-get update && apt-get install -y \
   software-properties-common \
   && add-apt-repository -y ppa:zhangsongcui3371/fastfetch \
   && apt-get update && apt-get install -y \
-  openssh-server \
   sudo \
+  openssh-server \
+  ttyd \
+  nano \
+  vim \
   curl \
+  wget \
   net-tools \
   iputils-ping \
-  vim \
-  wget \
   htop \
   btop \
   fastfetch \
-  ttyd \
   && curl -Lo /usr/local/bin/neofetch https://raw.githubusercontent.com/dylanaraps/neofetch/master/neofetch \
   && chmod +x /usr/local/bin/neofetch \
   && rm -rf /var/lib/apt/lists/*
