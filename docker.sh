@@ -71,6 +71,12 @@ if [ "$choice" = "2" ]; then
   done
   echo "🔨 Building and pushing multi-architecture Docker image using buildx to $DOCKER_HUB_REPO:latest and $DOCKER_HUB_REPO:$version_tag..."
   docker buildx build --no-cache --platform linux/amd64,linux/arm64 -t $DOCKER_HUB_REPO:latest -t $DOCKER_HUB_REPO:$version_tag . --push
+
+  # Update version in docker-compose.yaml
+  if [ -f "docker-compose.yaml" ]; then
+    echo "📝 Updating version in docker-compose.yaml to $version_tag..."
+    sed -i '' "s|image: $DOCKER_HUB_REPO:\d+\.\d+\.\d+|image: $DOCKER_HUB_REPO:$version_tag|" docker-compose.yaml
+  fi
 else
   # Build multi-architecture Docker image using buildx
   echo "🔨 Building multi-architecture Docker image using buildx..."
@@ -88,6 +94,7 @@ else
   docker run -d --privileged \
     --cpus="2.0" \
     --memory="2g" \
+    --sysctl net.ipv4.ping_group_range="0 2147483647" \
     -p "$SSH_PORT":22 \
     -p "$TTYD_PORT":6080 \
     --name $CONTAINER_NAME \

@@ -158,7 +158,7 @@ EOF
 
   chmod +x /usr/local/bin/sudo
 
-  # Force Docker Desktop macOS DNS Gateway inside gVisor
+  # Force Docker Desktop macOS DNS Gateway inside gVisor (jangan dihapus, nanti "sudo apt update" nya error)
   echo "nameserver 192.168.65.2" > /etc/resolv.conf
 
   # Create the initialization flag file (format: YYYY-mm-dd_HH-mm-ss)
