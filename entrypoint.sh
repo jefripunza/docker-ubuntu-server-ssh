@@ -186,8 +186,8 @@ exit 0
 EOF
 chmod +x /usr/bin/systemd-detect-virt
 
-# Spoof df to report ext4 filesystem instead of overlay on /
-if [ ! -f /usr/bin/df.real ]; then
+# 1. Spoof df to report ext4 filesystem instead of overlay on /
+if [ -f /usr/bin/df ] && [ ! -f /usr/bin/df.real ]; then
   mv /usr/bin/df /usr/bin/df.real
   cat << 'EOF' > /usr/bin/df
 #!/bin/bash
@@ -200,8 +200,8 @@ EOF
   chmod +x /usr/bin/df
 fi
 
-# Spoof mount to report ext4 filesystem instead of overlay on /
-if [ ! -f /usr/bin/mount.real ]; then
+# 2. Spoof mount to report ext4 filesystem instead of overlay on /
+if [ -f /usr/bin/mount ] && [ ! -f /usr/bin/mount.real ]; then
   mv /usr/bin/mount /usr/bin/mount.real
   cat << 'EOF' > /usr/bin/mount
 #!/bin/bash
@@ -214,8 +214,8 @@ EOF
   chmod +x /usr/bin/mount
 fi
 
-# Spoof stat to report Root Inode as 2 instead of 1
-if [ ! -f /usr/bin/stat.real ]; then
+# 3. Spoof stat to report Root Inode as 2 instead of 1
+if [ -f /usr/bin/stat ] && [ ! -f /usr/bin/stat.real ]; then
   mv /usr/bin/stat /usr/bin/stat.real
   cat << 'EOF' > /usr/bin/stat
 #!/bin/bash
@@ -228,7 +228,7 @@ EOF
   chmod +x /usr/bin/stat
 fi
 
-# Spoof capsh to report standard VM capabilities and securebits
+# 4. Spoof capsh to report standard VM capabilities and securebits
 CAPSH_PATH=""
 if [ -f /usr/sbin/capsh ]; then
   CAPSH_PATH="/usr/sbin/capsh"
@@ -254,6 +254,7 @@ if [[ "$*" == *"--print"* ]]; then
         fi
     done
 
+    # Find the real binary to execute
     REAL_PATH="${BASH_SOURCE[0]}.real"
 
     if [ "$CURRENT_UID" -eq 0 ]; then
@@ -295,9 +296,8 @@ EOF
   chmod +x "$CAPSH_PATH"
 fi
 
-# 5. Spoof dmesg to return realistic Linux kernel boot logs
-if [ ! -f /usr/bin/dmesg.real ]; then
-  # Create a highly realistic fake dmesg file
+# 5. Spoof dmesg
+if [ -f /usr/bin/dmesg ] && [ ! -f /usr/bin/dmesg.real ]; then
   cat << 'EOF' > /etc/fake_dmesg
 [    0.000000] Linux version 6.8.0-40-generic (buildd@allama) (gcc version 13.2.0 (Ubuntu 13.2.0-23ubuntu4) ) #40-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul  5 10:30:12 UTC 2024
 [    0.000000] Command line: BOOT_IMAGE=/boot/vmlinuz-6.8.0-40-generic root=UUID=742fa68c-1e24-4f81-8b9a-4c281dfc33bf ro quiet splash
@@ -336,10 +336,10 @@ EOF
   chmod +x /usr/bin/dmesg
 fi
 
-# 6. Spoof uname to return matching kernel version of Ubuntu 24.04 (6.8.0-40-generic)
-if [ ! -f /bin/uname.real ]; then
-  mv /bin/uname /bin/uname.real
-  cat << EOF > /bin/uname
+# 6. Spoof uname
+if [ -f /usr/bin/uname ] && [ ! -f /usr/bin/uname.real ]; then
+  mv /usr/bin/uname /usr/bin/uname.real
+  cat << EOF > /usr/bin/uname
 #!/bin/bash
 if [ "\$1" = "-r" ]; then
     echo "6.8.0-40-generic"
@@ -351,15 +351,15 @@ elif [ "\$1" = "-a" ] || [ \$# -eq 0 ]; then
     echo "Linux \$SSH_HOSTNAME 6.8.0-40-generic #40-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 5 10:30:12 UTC 2024 x86_64 x86_64 x86_64 GNU/Linux"
     exit 0
 fi
-exec /bin/uname.real "\$@"
+exec /usr/bin/uname.real "\$@"
 EOF
-  chmod +x /bin/uname
+  chmod +x /usr/bin/uname
 fi
 
-# 7. Spoof cat and grep to hide '/proc/self/mountinfo' and '/sys/class/dmi/id/sys_vendor'
-if [ ! -f /bin/cat.real ]; then
-  mv /bin/cat /bin/cat.real
-  cat << 'EOF' > /bin/cat
+# 7. Spoof cat
+if [ -f /usr/bin/cat ] && [ ! -f /usr/bin/cat.real ]; then
+  mv /usr/bin/cat /usr/bin/cat.real
+  cat << 'EOF' > /usr/bin/cat
 #!/bin/bash
 # Intercept sys_vendor
 if [ "$#" -eq 1 ] && [ "$1" = "/sys/class/dmi/id/sys_vendor" ]; then
@@ -382,22 +382,23 @@ SUBEOF
     exit 0
 fi
 
-exec /bin/cat.real "$@"
+exec /usr/bin/cat.real "$@"
 EOF
-  chmod +x /bin/cat
+  chmod +x /usr/bin/cat
 fi
 
-if [ ! -f /bin/grep.real ]; then
-  mv /bin/grep /bin/grep.real
-  cat << 'EOF' > /bin/grep
+# 8. Spoof grep
+if [ -f /usr/bin/grep ] && [ ! -f /usr/bin/grep.real ]; then
+  mv /usr/bin/grep /usr/bin/grep.real
+  cat << 'EOF' > /usr/bin/grep
 #!/bin/bash
 if [[ "$*" == *"/proc/self/mountinfo"* || "$*" == *"/proc/1/mountinfo"* ]]; then
-    /bin/cat /proc/self/mountinfo | /bin/grep.real "$@"
+    /usr/bin/cat /proc/self/mountinfo | /usr/bin/grep.real "$@"
     exit 0
 fi
-exec /bin/grep.real "$@"
+exec /usr/bin/grep.real "$@"
 EOF
-  chmod +x /bin/grep
+  chmod +x /usr/bin/grep
 fi
 
 # Dynamically set active system hostname in UTS namespace and update hosts/hostname files

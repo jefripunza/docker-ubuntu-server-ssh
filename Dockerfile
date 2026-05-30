@@ -23,7 +23,8 @@ RUN apt-get update && apt-get install -y \
   && rm -rf /var/lib/apt/lists/*
 
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY banner.sh /etc/banner.sh
+RUN chmod +x /entrypoint.sh /etc/banner.sh && echo "bash /etc/banner.sh" >> /etc/bash.bashrc
 
 EXPOSE 22 6080
 
