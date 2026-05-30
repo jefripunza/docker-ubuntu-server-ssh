@@ -18,6 +18,8 @@ RUN apt-get update && apt-get install -y \
   htop \
   btop \
   fastfetch \
+  speedtest-cli \
+  iproute2 \
   && curl -Lo /usr/local/bin/neofetch https://raw.githubusercontent.com/dylanaraps/neofetch/master/neofetch \
   && chmod +x /usr/local/bin/neofetch \
   && rm -rf /var/lib/apt/lists/*

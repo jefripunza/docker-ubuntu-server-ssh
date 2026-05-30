@@ -1,4 +1,4 @@
-# Sawang.Cloud Premium VPS Environment
+# VPS Ubuntu Server
 [![Docker Pulls](https://img.shields.io/docker/pulls/jefriherditriyanto/vps-ubuntu-server.svg?style=flat-square)](https://hub.docker.com/r/jefriherditriyanto/vps-ubuntu-server)
 [![Docker Image Size](https://img.shields.io/docker/image-size/jefriherditriyanto/vps-ubuntu-server/latest.svg?style=flat-square)](https://hub.docker.com/r/jefriherditriyanto/vps-ubuntu-server)
 [![Platform](https://img.shields.io/badge/platform-linux%2Famd64%20%7C%20linux%2Farm64-blue.svg?style=flat-square)](https://hub.docker.com/r/jefriherditriyanto/vps-ubuntu-server)
@@ -27,7 +27,6 @@ Engineered for production and development workloads, this environment is hardene
 *   **🖥️ Dual-Access Shell**:
     *   Standard SSH daemon running on port `22` for key/password logins.
     *   Elegant interactive web terminal running on port `6080` powered by **TTYD** with custom modern styling.
-*   **☁️ Sawang.Cloud Premium Banner**: Sleek, high-contrast, dual-color ANSI ASCII login banner (Sawang in Indigo/Blue, Cloud in Cyan) detailing active virtualization, OS version, and sandbox specs upon login.
 
 ---
 
@@ -83,7 +82,7 @@ Coolify is an excellent self-hosted alternative to Heroku/Vercel. Follow these s
     ```env
     SSH_USER=ubuntu
     SSH_PASSWORD=your_secure_password_here
-    SSH_HOSTNAME=sawang-cloud-vps
+    SSH_HOSTNAME=cloud-vps
     SSH_PORT=2222
     TTYD_PORT=6080
     ```
@@ -120,7 +119,7 @@ services:
     environment:
       - SSH_USER=ubuntu
       - SSH_PASSWORD=your_secure_password_here
-      - SSH_HOSTNAME=sawang-server
+      - SSH_HOSTNAME=your_hostname_server
       - SSH_PORT=2222
       - TTYD_PORT=6080
     deploy:
@@ -152,4 +151,4 @@ Once deployed, access your Premium VPS environment using either of the following
     ```txt
     http://your-server-ip:6080
     ```
-    Enter your defined `SSH_USER` and `SSH_PASSWORD` to log in. You will be greeted by the stunning, colorful **Sawang.Cloud** login banner and a fully configured KVM-spoofed environment!
+    Enter your defined `SSH_USER` and `SSH_PASSWORD` to log in. You will be greeted by the stunning, and a fully configured KVM-spoofed environment!

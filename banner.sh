@@ -4,7 +4,6 @@
 # ANSI Color Codes
 BLUE='\033[1;34m'
 CYAN='\033[1;36m'
-GREEN='\033[1;32m'
 RESET='\033[0m'
 BOLD='\033[1m'
 

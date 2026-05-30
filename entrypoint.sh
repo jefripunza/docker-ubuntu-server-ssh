@@ -389,7 +389,7 @@ echo "🚀 Starting SSH daemon..."
 
 # Start Docker daemon in the background
 echo "🐳 Starting Docker daemon..."
-dockerd >/var/log/dockerd.log 2>&1 &
+dockerd --iptables=false >/var/log/dockerd.log 2>&1 &
 
 # Wait for Docker daemon to start
 timeout 15 sh -c 'until docker info >/dev/null 2>&1; do sleep 1; done'
