@@ -54,15 +54,18 @@ Perfect for local testing, development, and standard VM simulation.
 
 ```bash
 docker run -d --privileged \
+  --runtime runsc \
   --cpus="2.0" \
   --memory="2g" \
-  --sysctl net.ipv4.ping_group_range="0 2147483647" \
+  --restart always \
   -p 2222:22 \
   -p 6080:6080 \
   --name vps-ubuntu-server-app \
-  --hostname "server" \
   -e SSH_USER="ubuntu" \
   -e SSH_PASSWORD="your_secure_password" \
+  -e SSH_HOSTNAME="server" \
+  -e SSH_PORT="2222" \
+  -e TTYD_PORT="6080" \
   jefriherditriyanto/vps-ubuntu-server:latest
 ```
 
@@ -81,6 +84,7 @@ Coolify is an excellent self-hosted alternative to Heroku/Vercel. Follow these s
     SSH_USER=ubuntu
     SSH_PASSWORD=your_secure_password_here
     SSH_HOSTNAME=sawang-cloud-vps
+    SSH_PORT=2222
     TTYD_PORT=6080
     ```
 4.  **Network & Security Settings**:
@@ -117,6 +121,8 @@ services:
       - SSH_USER=ubuntu
       - SSH_PASSWORD=your_secure_password_here
       - SSH_HOSTNAME=sawang-server
+      - SSH_PORT=2222
+      - TTYD_PORT=6080
     deploy:
       resources:
         limits:
