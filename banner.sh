@@ -9,13 +9,18 @@ RESET='\033[0m'
 BOLD='\033[1m'
 
 clear
-echo -e "${CYAN}"
-echo -e "   ${BLUE}_____${RESET}                                 ${CYAN}____ _                 _${RESET} "
-echo -e "  ${BLUE}/ ___/${RESET} ____ _ _      __ ____ _ ____   ${CYAN}/ __/| | ___   __  __  | |${RESET} "
-echo -e "  ${BLUE}\__ \\${RESET} / __ \`/| | /| / // __ \`/ / __ \\ ${CYAN}/ /   | |/ _ \\ / / / /  |_|${RESET} "
-echo -e " ${BLUE}___/ /${RESET}/ /_/ / | |/ |/ // /_/ // / / // ${CYAN}/___ | || (_) || /_/ /   _ ${RESET} "
-echo -e "${BLUE}/____/${RESET} \__,_/  |__/|__/ \__,_//_/ /_//${CYAN}\____/ |_| \___/ \__,_/   |_|${RESET} "
-echo -e "${RESET}"
+# Sawang in BLUE, Cloud in CYAN
+echo -e "${BLUE}   _____${RESET}"
+echo -e "${BLUE}  / ___/____ __      ______ _____  ____ _${RESET}"
+echo -e "${BLUE}  \\__ \\/ __ \`/ | /| / / __ \`/ __ \\/ __ \`/${RESET}"
+echo -e "${BLUE} ___/ / /_/ /| |/ |/ / /_/ / / / / /_/ / ${RESET}"
+echo -e "${BLUE}/____/\\__,_/ |__/|__/\\__,_/_/ /_/\\__, /  ${RESET}"
+echo -e "${CYAN}     ________                __ ${BLUE}/____/   ${RESET}"
+echo -e "${CYAN}    / ____/ /___  __  ______/ /          ${RESET}"
+echo -e "${CYAN}   / /   / / __ \\/ / / / __  /           ${RESET}"
+echo -e "${CYAN} _/ /___/ / /_/ / /_/ / /_/ /            ${RESET}"
+echo -e "${CYAN}(_)____/_/\\____/\\__,_/\\__,_/             ${RESET}"
+echo -e ""
 echo -e " ---------------------------------------------------------------"
 echo -e " ${BOLD}Welcome to Sawang.Cloud Premium VPS Environment${RESET}"
 echo -e " OS: Ubuntu 24.04.3 LTS (Noble Numbat) x86_64"

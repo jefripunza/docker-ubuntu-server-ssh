@@ -173,62 +173,68 @@ fi
 # Hide Docker environment indicators (delete /.dockerenv)
 rm -f /.dockerenv
 
-# Spoof systemd-detect-virt to report KVM VM instead of Docker
-rm -f /usr/bin/systemd-detect-virt
-cat << 'EOF' > /usr/bin/systemd-detect-virt
-#!/bin/bash
+# Create fake mountinfo for cat and grep spoofers to read
+cat << 'EOF' > /etc/fake_mountinfo
+24 23 8:1 / / rw,relatime - ext4 /dev/sda1 rw,discard,errors=remount-ro,data=ordered
+25 24 0:6 /dev /dev rw,nosuid,relatime - devtmpfs udev rw,size=4012356k,nr_inodes=1003089,mode=755
+26 25 0:21 /dev/pts /dev/pts rw,nosuid,noexec,relatime - devpts devpts rw,gid=5,mode=620,ptmxmode=000
+27 24 0:22 /sys /sys rw,nosuid,nodev,noexec,relatime - sysfs sysfs rw
+28 24 0:23 /proc /proc rw,nosuid,nodev,noexec,relatime - proc proc rw
+29 27 0:24 /sys/kernel/security /sys/kernel/security rw,nosuid,nodev,noexec,relatime - securityfs securityfs rw
+30 25 0:25 /dev/shm /dev/shm rw,nosuid,nodev - tmpfs tmpfs rw
+31 27 0:26 /sys/fs/cgroup /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,mode=755
+EOF
+
+# Helper function to safely spoof any binary by resolving symlinks and injecting real physical path
+safe_spoof() {
+  local target="$1"
+  local wrapper_content="$2"
+  
+  local real_bin
+  real_bin=$(readlink -f "$target")
+  
+  if [ -f "$real_bin" ] && [ ! -f "${real_bin}.real" ]; then
+    mv "$real_bin" "${real_bin}.real"
+    echo "$wrapper_content" > "$real_bin"
+    sed -i "s|TARGET_REAL_BIN|${real_bin}.real|g" "$real_bin"
+    chmod +x "$real_bin"
+  fi
+}
+
+# 1. Spoof systemd-detect-virt to report KVM VM instead of Docker
+safe_spoof "/usr/bin/systemd-detect-virt" '#!/bin/bash
 if [[ "$*" == *"--container"* || "$*" == *"-c"* ]]; then
     echo "none"
     exit 1
 fi
 echo "kvm"
-exit 0
-EOF
-chmod +x /usr/bin/systemd-detect-virt
+exit 0'
 
-# 1. Spoof df to report ext4 filesystem instead of overlay on /
-if [ -f /usr/bin/df ] && [ ! -f /usr/bin/df.real ]; then
-  mv /usr/bin/df /usr/bin/df.real
-  cat << 'EOF' > /usr/bin/df
-#!/bin/bash
+# 2. Spoof df to report ext4 filesystem instead of overlay on /
+safe_spoof "/usr/bin/df" '#!/bin/bash
 if [[ "$*" == *"-T"* && "$*" == *"/"* ]]; then
     echo -e "Filesystem     Type      1K-blocks      Used Available Use% Mounted on\n/dev/sda1      ext4       61793924   4156220  54485744   8% /"
     exit 0
 fi
-exec /usr/bin/df.real "$@"
-EOF
-  chmod +x /usr/bin/df
-fi
+exec TARGET_REAL_BIN "$@"'
 
-# 2. Spoof mount to report ext4 filesystem instead of overlay on /
-if [ -f /usr/bin/mount ] && [ ! -f /usr/bin/mount.real ]; then
-  mv /usr/bin/mount /usr/bin/mount.real
-  cat << 'EOF' > /usr/bin/mount
-#!/bin/bash
+# 3. Spoof mount to report ext4 filesystem instead of overlay on /
+safe_spoof "/usr/bin/mount" '#!/bin/bash
 if [ $# -eq 0 ]; then
-    /usr/bin/mount.real "$@" | sed 's|none on / type overlay (rw)|/dev/sda1 on / type ext4 (rw,relatime)|'
+    TARGET_REAL_BIN "$@" | sed '\''s|none on / type overlay (rw)|/dev/sda1 on / type ext4 (rw,relatime)|'\''
     exit 0
 fi
-exec /usr/bin/mount.real "$@"
-EOF
-  chmod +x /usr/bin/mount
-fi
+exec TARGET_REAL_BIN "$@"'
 
-# 3. Spoof stat to report Root Inode as 2 instead of 1
-if [ -f /usr/bin/stat ] && [ ! -f /usr/bin/stat.real ]; then
-  mv /usr/bin/stat /usr/bin/stat.real
-  cat << 'EOF' > /usr/bin/stat
-#!/bin/bash
+# 4. Spoof stat to report Root Inode as 2 instead of 1
+safe_spoof "/usr/bin/stat" '#!/bin/bash
 if [ "$#" -eq 3 ] && [ "$1" = "-c" ] && [ "$2" = "%i" ] && [ "$3" = "/" ]; then
     echo "2"
     exit 0
 fi
-exec /usr/bin/stat.real "$@"
-EOF
-  chmod +x /usr/bin/stat
-fi
+exec TARGET_REAL_BIN "$@"'
 
-# 4. Spoof capsh to report standard VM capabilities and securebits
+# 5. Spoof capsh to report standard VM capabilities and securebits
 CAPSH_PATH=""
 if [ -f /usr/sbin/capsh ]; then
   CAPSH_PATH="/usr/sbin/capsh"
@@ -236,10 +242,8 @@ elif [ -f /usr/bin/capsh ]; then
   CAPSH_PATH="/usr/bin/capsh"
 fi
 
-if [ -n "$CAPSH_PATH" ] && [ ! -f "${CAPSH_PATH}.real" ]; then
-  mv "$CAPSH_PATH" "${CAPSH_PATH}.real"
-  cat << 'EOF' > "$CAPSH_PATH"
-#!/bin/bash
+if [ -n "$CAPSH_PATH" ]; then
+  safe_spoof "$CAPSH_PATH" '#!/bin/bash
 if [[ "$*" == *"--print"* ]]; then
     CURRENT_USER=$(whoami)
     CURRENT_UID=$(id -u)
@@ -254,16 +258,13 @@ if [[ "$*" == *"--print"* ]]; then
         fi
     done
 
-    # Find the real binary to execute
-    REAL_PATH="${BASH_SOURCE[0]}.real"
-
     if [ "$CURRENT_UID" -eq 0 ]; then
-        cat << 'SUBEOF'
+        cat << '\''SUBEOF'\''
 Current: = ep
 Bounding set =cap_chown,cap_dac_override,cap_dac_read_search,cap_fowner,cap_fsetid,cap_kill,cap_setgid,cap_setuid,cap_setpcap,cap_linux_immutable,cap_net_bind_service,cap_net_broadcast,cap_net_admin,cap_ipc_lock,cap_ipc_owner,cap_sys_module,cap_sys_rawio,cap_sys_chroot,cap_sys_ptrace,cap_sys_pacct,cap_sys_admin,cap_sys_boot,cap_sys_nice,cap_sys_resource,cap_sys_time,cap_sys_tty_config,cap_mknod,cap_lease,cap_audit_write,cap_audit_control,cap_setfcap,cap_mac_override,cap_mac_admin,cap_syslog,cap_wake_alarm,cap_block_suspend,cap_audit_read,cap_perfmon,cap_bpf,cap_checkpoint_restore
 Ambient set =
 Current IAB:
-Securebits: 00/0x0/1'b0
+Securebits: 00/0x0/1'\''b0
  secure-noroot: no
  secure-no-suid-fixup: no
  secure-keep-caps: no
@@ -278,7 +279,7 @@ Current: =
 Bounding set =cap_chown,cap_dac_override,cap_dac_read_search,cap_fowner,cap_fsetid,cap_kill,cap_setgid,cap_setuid,cap_setpcap,cap_linux_immutable,cap_net_bind_service,cap_net_broadcast,cap_net_admin,cap_ipc_lock,cap_ipc_owner,cap_sys_module,cap_sys_rawio,cap_sys_chroot,cap_sys_ptrace,cap_sys_pacct,cap_sys_admin,cap_sys_boot,cap_sys_nice,cap_sys_resource,cap_sys_time,cap_sys_tty_config,cap_mknod,cap_lease,cap_audit_write,cap_audit_control,cap_setfcap,cap_mac_override,cap_mac_admin,cap_syslog,cap_wake_alarm,cap_block_suspend,cap_audit_read,cap_perfmon,cap_bpf,cap_checkpoint_restore
 Ambient set =
 Current IAB:
-Securebits: 00/0x0/1'b0
+Securebits: 00/0x0/1'\''b0
  secure-noroot: no
  secure-no-suid-fixup: no
  secure-keep-caps: no
@@ -290,13 +291,10 @@ SUBEOF
     fi
     exit 0
 fi
-REAL_PATH="${BASH_SOURCE[0]}.real"
-exec "$REAL_PATH" "$@"
-EOF
-  chmod +x "$CAPSH_PATH"
+exec TARGET_REAL_BIN "$@"'
 fi
 
-# 5. Spoof dmesg
+# 6. Spoof dmesg to return realistic Linux kernel boot logs
 if [ -f /usr/bin/dmesg ] && [ ! -f /usr/bin/dmesg.real ]; then
   cat << 'EOF' > /etc/fake_dmesg
 [    0.000000] Linux version 6.8.0-40-generic (buildd@allama) (gcc version 13.2.0 (Ubuntu 13.2.0-23ubuntu4) ) #40-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul  5 10:30:12 UTC 2024
@@ -323,44 +321,31 @@ if [ -f /usr/bin/dmesg ] && [ ! -f /usr/bin/dmesg.real ]; then
 [    1.125195] systemd[1]: Detected virtualization kvm.
 [    1.262878] systemd[1]: Detected architecture x86-64.
 EOF
+fi
 
-  mv /usr/bin/dmesg /usr/bin/dmesg.real
-  cat << 'EOF' > /usr/bin/dmesg
-#!/bin/bash
+safe_spoof "/usr/bin/dmesg" '#!/bin/bash
 if [ -f /etc/fake_dmesg ]; then
     cat /etc/fake_dmesg
     exit 0
 fi
-exec /usr/bin/dmesg.real "$@"
-EOF
-  chmod +x /usr/bin/dmesg
-fi
+exec TARGET_REAL_BIN "$@"'
 
-# 6. Spoof uname
-if [ -f /usr/bin/uname ] && [ ! -f /usr/bin/uname.real ]; then
-  mv /usr/bin/uname /usr/bin/uname.real
-  cat << EOF > /usr/bin/uname
-#!/bin/bash
-if [ "\$1" = "-r" ]; then
+# 7. Spoof uname to return matching kernel version of Ubuntu 24.04 (6.8.0-40-generic)
+safe_spoof "/usr/bin/uname" '#!/bin/bash
+if [ "$1" = "-r" ]; then
     echo "6.8.0-40-generic"
     exit 0
-elif [ "\$1" = "-v" ]; then
+elif [ "$1" = "-v" ]; then
     echo "#40-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 5 10:30:12 UTC 2024"
     exit 0
-elif [ "\$1" = "-a" ] || [ \$# -eq 0 ]; then
-    echo "Linux \$SSH_HOSTNAME 6.8.0-40-generic #40-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 5 10:30:12 UTC 2024 x86_64 x86_64 x86_64 GNU/Linux"
+elif [ "$1" = "-a" ] || [ $# -eq 0 ]; then
+    echo "Linux $SSH_HOSTNAME 6.8.0-40-generic #40-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 5 10:30:12 UTC 2024 x86_64 x86_64 x86_64 GNU/Linux"
     exit 0
 fi
-exec /usr/bin/uname.real "\$@"
-EOF
-  chmod +x /usr/bin/uname
-fi
+exec TARGET_REAL_BIN "$@"'
 
-# 7. Spoof cat
-if [ -f /usr/bin/cat ] && [ ! -f /usr/bin/cat.real ]; then
-  mv /usr/bin/cat /usr/bin/cat.real
-  cat << 'EOF' > /usr/bin/cat
-#!/bin/bash
+# 8. Spoof cat to hide '/proc/self/mountinfo' and '/sys/class/dmi/id/sys_vendor'
+safe_spoof "/usr/bin/cat" '#!/bin/bash
 # Intercept sys_vendor
 if [ "$#" -eq 1 ] && [ "$1" = "/sys/class/dmi/id/sys_vendor" ]; then
     echo "QEMU"
@@ -369,37 +354,17 @@ fi
 
 # Intercept mountinfo
 if [[ "$*" == *"/proc/self/mountinfo"* || "$*" == *"/proc/1/mountinfo"* ]]; then
-    cat << 'SUBEOF'
-24 23 8:1 / / rw,relatime - ext4 /dev/sda1 rw,discard,errors=remount-ro,data=ordered
-25 24 0:6 /dev /dev rw,nosuid,relatime - devtmpfs udev rw,size=4012356k,nr_inodes=1003089,mode=755
-26 25 0:21 /dev/pts /dev/pts rw,nosuid,noexec,relatime - devpts devpts rw,gid=5,mode=620,ptmxmode=000
-27 24 0:22 /sys /sys rw,nosuid,nodev,noexec,relatime - sysfs sysfs rw
-28 24 0:23 /proc /proc rw,nosuid,nodev,noexec,relatime - proc proc rw
-29 27 0:24 /sys/kernel/security /sys/kernel/security rw,nosuid,nodev,noexec,relatime - securityfs securityfs rw
-30 25 0:25 /dev/shm /dev/shm rw,nosuid,nodev - tmpfs tmpfs rw
-31 27 0:26 /sys/fs/cgroup /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,mode=755
-SUBEOF
-    exit 0
+    exec TARGET_REAL_BIN /etc/fake_mountinfo
 fi
 
-exec /usr/bin/cat.real "$@"
-EOF
-  chmod +x /usr/bin/cat
-fi
+exec TARGET_REAL_BIN "$@"'
 
-# 8. Spoof grep
-if [ -f /usr/bin/grep ] && [ ! -f /usr/bin/grep.real ]; then
-  mv /usr/bin/grep /usr/bin/grep.real
-  cat << 'EOF' > /usr/bin/grep
-#!/bin/bash
+# 9. Spoof grep to hide '/proc/self/mountinfo'
+safe_spoof "/usr/bin/grep" '#!/bin/bash
 if [[ "$*" == *"/proc/self/mountinfo"* || "$*" == *"/proc/1/mountinfo"* ]]; then
-    /usr/bin/cat /proc/self/mountinfo | /usr/bin/grep.real "$@"
-    exit 0
+    exec TARGET_REAL_BIN "$@" /etc/fake_mountinfo
 fi
-exec /usr/bin/grep.real "$@"
-EOF
-  chmod +x /usr/bin/grep
-fi
+exec TARGET_REAL_BIN "$@"'
 
 # Dynamically set active system hostname in UTS namespace and update hosts/hostname files
 hostname "$SSH_HOSTNAME" 2>/dev/null || true

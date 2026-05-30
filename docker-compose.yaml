@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   ubuntu-ssh:
-    image: jefriherditriyanto/vps-ubuntu-server:1.0.14
+    image: jefriherditriyanto/vps-ubuntu-server:1.0.15
     # https://gvisor.dev/docs/user_guide/install/
     runtime: runsc
     privileged: true
