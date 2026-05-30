@@ -295,6 +295,111 @@ EOF
   chmod +x "$CAPSH_PATH"
 fi
 
+# 5. Spoof dmesg to return realistic Linux kernel boot logs
+if [ ! -f /usr/bin/dmesg.real ]; then
+  # Create a highly realistic fake dmesg file
+  cat << 'EOF' > /etc/fake_dmesg
+[    0.000000] Linux version 6.8.0-40-generic (buildd@allama) (gcc version 13.2.0 (Ubuntu 13.2.0-23ubuntu4) ) #40-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul  5 10:30:12 UTC 2024
+[    0.000000] Command line: BOOT_IMAGE=/boot/vmlinuz-6.8.0-40-generic root=UUID=742fa68c-1e24-4f81-8b9a-4c281dfc33bf ro quiet splash
+[    0.000000] x86/fpu: Supporting XSAVE feature 0x001: 'x87 floating point registers'
+[    0.000000] BIOS-provided physical RAM map:
+[    0.000000] BIOS-e820: [mem 0x0000000000000000-0x000000000009ffff] usable
+[    0.000000] BIOS-e820: [mem 0x0000000000100000-0x000000007fffffff] usable
+[    0.000000] NX (Execute Disable) protection: active
+[    0.000115] SMBIOS 2.8 present.
+[    0.000132] DMI: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.16.2-debian-1.16.2-1 04/01/2014
+[    0.000215] Hypervisor detected: KVM
+[    0.052102] CPU0: Intel(R) Xeon(R) Gold 6248 CPU @ 2.50GHz (family: 0x6, model: 0x55, stepping: 0x7)
+[    0.125006] ACPI: Core revision 20230628
+[    0.265112] SCSI subsystem initialized
+[    0.342150] ACPI: bus type PCI registered
+[    0.412195] libata version 3.00 uniform device driver initialized
+[    0.495006] vgaarb: loaded
+[    0.532545] PCI: Probing PCI hardware
+[    0.632120] clocksource: refined-jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19109699739521 ns
+[    0.725010] Serial: 8250/16550 driver, 32 ports, IRQ sharing enabled
+[    0.812908] virtio-pci 0000:00:03.0: using random self MAC address 52:54:00:ab:cd:ef
+[    0.912520] ext4-fs (sda1): mounted filesystem with ordered data mode. Opts: (null)
+[    1.125195] systemd[1]: Detected virtualization kvm.
+[    1.262878] systemd[1]: Detected architecture x86-64.
+EOF
+
+  mv /usr/bin/dmesg /usr/bin/dmesg.real
+  cat << 'EOF' > /usr/bin/dmesg
+#!/bin/bash
+if [ -f /etc/fake_dmesg ]; then
+    cat /etc/fake_dmesg
+    exit 0
+fi
+exec /usr/bin/dmesg.real "$@"
+EOF
+  chmod +x /usr/bin/dmesg
+fi
+
+# 6. Spoof uname to return matching kernel version of Ubuntu 24.04 (6.8.0-40-generic)
+if [ ! -f /bin/uname.real ]; then
+  mv /bin/uname /bin/uname.real
+  cat << EOF > /bin/uname
+#!/bin/bash
+if [ "\$1" = "-r" ]; then
+    echo "6.8.0-40-generic"
+    exit 0
+elif [ "\$1" = "-v" ]; then
+    echo "#40-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 5 10:30:12 UTC 2024"
+    exit 0
+elif [ "\$1" = "-a" ] || [ \$# -eq 0 ]; then
+    echo "Linux \$SSH_HOSTNAME 6.8.0-40-generic #40-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 5 10:30:12 UTC 2024 x86_64 x86_64 x86_64 GNU/Linux"
+    exit 0
+fi
+exec /bin/uname.real "\$@"
+EOF
+  chmod +x /bin/uname
+fi
+
+# 7. Spoof cat and grep to hide '/proc/self/mountinfo' and '/sys/class/dmi/id/sys_vendor'
+if [ ! -f /bin/cat.real ]; then
+  mv /bin/cat /bin/cat.real
+  cat << 'EOF' > /bin/cat
+#!/bin/bash
+# Intercept sys_vendor
+if [ "$#" -eq 1 ] && [ "$1" = "/sys/class/dmi/id/sys_vendor" ]; then
+    echo "QEMU"
+    exit 0
+fi
+
+# Intercept mountinfo
+if [[ "$*" == *"/proc/self/mountinfo"* || "$*" == *"/proc/1/mountinfo"* ]]; then
+    cat << 'SUBEOF'
+24 23 8:1 / / rw,relatime - ext4 /dev/sda1 rw,discard,errors=remount-ro,data=ordered
+25 24 0:6 /dev /dev rw,nosuid,relatime - devtmpfs udev rw,size=4012356k,nr_inodes=1003089,mode=755
+26 25 0:21 /dev/pts /dev/pts rw,nosuid,noexec,relatime - devpts devpts rw,gid=5,mode=620,ptmxmode=000
+27 24 0:22 /sys /sys rw,nosuid,nodev,noexec,relatime - sysfs sysfs rw
+28 24 0:23 /proc /proc rw,nosuid,nodev,noexec,relatime - proc proc rw
+29 27 0:24 /sys/kernel/security /sys/kernel/security rw,nosuid,nodev,noexec,relatime - securityfs securityfs rw
+30 25 0:25 /dev/shm /dev/shm rw,nosuid,nodev - tmpfs tmpfs rw
+31 27 0:26 /sys/fs/cgroup /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,mode=755
+SUBEOF
+    exit 0
+fi
+
+exec /bin/cat.real "$@"
+EOF
+  chmod +x /bin/cat
+fi
+
+if [ ! -f /bin/grep.real ]; then
+  mv /bin/grep /bin/grep.real
+  cat << 'EOF' > /bin/grep
+#!/bin/bash
+if [[ "$*" == *"/proc/self/mountinfo"* || "$*" == *"/proc/1/mountinfo"* ]]; then
+    /bin/cat /proc/self/mountinfo | /bin/grep.real "$@"
+    exit 0
+fi
+exec /bin/grep.real "$@"
+EOF
+  chmod +x /bin/grep
+fi
+
 # Dynamically set active system hostname in UTS namespace and update hosts/hostname files
 hostname "$SSH_HOSTNAME" 2>/dev/null || true
 echo "$SSH_HOSTNAME" > /etc/hostname || true
