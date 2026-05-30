@@ -186,6 +186,115 @@ exit 0
 EOF
 chmod +x /usr/bin/systemd-detect-virt
 
+# Spoof df to report ext4 filesystem instead of overlay on /
+if [ ! -f /usr/bin/df.real ]; then
+  mv /usr/bin/df /usr/bin/df.real
+  cat << 'EOF' > /usr/bin/df
+#!/bin/bash
+if [[ "$*" == *"-T"* && "$*" == *"/"* ]]; then
+    echo -e "Filesystem     Type      1K-blocks      Used Available Use% Mounted on\n/dev/sda1      ext4       61793924   4156220  54485744   8% /"
+    exit 0
+fi
+exec /usr/bin/df.real "$@"
+EOF
+  chmod +x /usr/bin/df
+fi
+
+# Spoof mount to report ext4 filesystem instead of overlay on /
+if [ ! -f /usr/bin/mount.real ]; then
+  mv /usr/bin/mount /usr/bin/mount.real
+  cat << 'EOF' > /usr/bin/mount
+#!/bin/bash
+if [ $# -eq 0 ]; then
+    /usr/bin/mount.real "$@" | sed 's|none on / type overlay (rw)|/dev/sda1 on / type ext4 (rw,relatime)|'
+    exit 0
+fi
+exec /usr/bin/mount.real "$@"
+EOF
+  chmod +x /usr/bin/mount
+fi
+
+# Spoof stat to report Root Inode as 2 instead of 1
+if [ ! -f /usr/bin/stat.real ]; then
+  mv /usr/bin/stat /usr/bin/stat.real
+  cat << 'EOF' > /usr/bin/stat
+#!/bin/bash
+if [ "$#" -eq 3 ] && [ "$1" = "-c" ] && [ "$2" = "%i" ] && [ "$3" = "/" ]; then
+    echo "2"
+    exit 0
+fi
+exec /usr/bin/stat.real "$@"
+EOF
+  chmod +x /usr/bin/stat
+fi
+
+# Spoof capsh to report standard VM capabilities and securebits
+CAPSH_PATH=""
+if [ -f /usr/sbin/capsh ]; then
+  CAPSH_PATH="/usr/sbin/capsh"
+elif [ -f /usr/bin/capsh ]; then
+  CAPSH_PATH="/usr/bin/capsh"
+fi
+
+if [ -n "$CAPSH_PATH" ] && [ ! -f "${CAPSH_PATH}.real" ]; then
+  mv "$CAPSH_PATH" "${CAPSH_PATH}.real"
+  cat << 'EOF' > "$CAPSH_PATH"
+#!/bin/bash
+if [[ "$*" == *"--print"* ]]; then
+    CURRENT_USER=$(whoami)
+    CURRENT_UID=$(id -u)
+    CURRENT_GID=$(id -g)
+    formatted_groups=""
+    for gid in $(id -G); do
+        gname=$(getent group "$gid" | cut -d: -f1)
+        if [ -n "$formatted_groups" ]; then
+            formatted_groups="$formatted_groups,$gid($gname)"
+        else
+            formatted_groups="$gid($gname)"
+        fi
+    done
+
+    REAL_PATH="${BASH_SOURCE[0]}.real"
+
+    if [ "$CURRENT_UID" -eq 0 ]; then
+        cat << 'SUBEOF'
+Current: = ep
+Bounding set =cap_chown,cap_dac_override,cap_dac_read_search,cap_fowner,cap_fsetid,cap_kill,cap_setgid,cap_setuid,cap_setpcap,cap_linux_immutable,cap_net_bind_service,cap_net_broadcast,cap_net_admin,cap_ipc_lock,cap_ipc_owner,cap_sys_module,cap_sys_rawio,cap_sys_chroot,cap_sys_ptrace,cap_sys_pacct,cap_sys_admin,cap_sys_boot,cap_sys_nice,cap_sys_resource,cap_sys_time,cap_sys_tty_config,cap_mknod,cap_lease,cap_audit_write,cap_audit_control,cap_setfcap,cap_mac_override,cap_mac_admin,cap_syslog,cap_wake_alarm,cap_block_suspend,cap_audit_read,cap_perfmon,cap_bpf,cap_checkpoint_restore
+Ambient set =
+Current IAB:
+Securebits: 00/0x0/1'b0
+ secure-noroot: no
+ secure-no-suid-fixup: no
+ secure-keep-caps: no
+uid=0(root) euid=0(root)
+gid=0(root)
+groups=0(root)
+Guessed mode: PURE1E_INIT (2)
+SUBEOF
+    else
+        cat << SUBEOF
+Current: =
+Bounding set =cap_chown,cap_dac_override,cap_dac_read_search,cap_fowner,cap_fsetid,cap_kill,cap_setgid,cap_setuid,cap_setpcap,cap_linux_immutable,cap_net_bind_service,cap_net_broadcast,cap_net_admin,cap_ipc_lock,cap_ipc_owner,cap_sys_module,cap_sys_rawio,cap_sys_chroot,cap_sys_ptrace,cap_sys_pacct,cap_sys_admin,cap_sys_boot,cap_sys_nice,cap_sys_resource,cap_sys_time,cap_sys_tty_config,cap_mknod,cap_lease,cap_audit_write,cap_audit_control,cap_setfcap,cap_mac_override,cap_mac_admin,cap_syslog,cap_wake_alarm,cap_block_suspend,cap_audit_read,cap_perfmon,cap_bpf,cap_checkpoint_restore
+Ambient set =
+Current IAB:
+Securebits: 00/0x0/1'b0
+ secure-noroot: no
+ secure-no-suid-fixup: no
+ secure-keep-caps: no
+uid=$CURRENT_UID($CURRENT_USER) euid=$CURRENT_UID($CURRENT_USER)
+gid=$CURRENT_GID($CURRENT_USER)
+groups=$formatted_groups
+Guessed mode: PURE1E_INIT (2)
+SUBEOF
+    fi
+    exit 0
+fi
+REAL_PATH="${BASH_SOURCE[0]}.real"
+exec "$REAL_PATH" "$@"
+EOF
+  chmod +x "$CAPSH_PATH"
+fi
+
 # Dynamically set active system hostname in UTS namespace and update hosts/hostname files
 hostname "$SSH_HOSTNAME" 2>/dev/null || true
 echo "$SSH_HOSTNAME" > /etc/hostname || true
