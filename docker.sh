@@ -75,7 +75,7 @@ if [ "$choice" = "2" ]; then
   # Update version in docker-compose.yaml
   if [ -f "docker-compose.yaml" ]; then
     echo "📝 Updating version in docker-compose.yaml to $version_tag..."
-    sed -i '' "s|image: $DOCKER_HUB_REPO:\d+\.\d+\.\d+|image: $DOCKER_HUB_REPO:$version_tag|" docker-compose.yaml
+    sed -i '' -E "s|image: $DOCKER_HUB_REPO:[0-9]+\.[0-9]+\.[0-9]+|image: $DOCKER_HUB_REPO:$version_tag|" docker-compose.yaml
   fi
 else
   # Build multi-architecture Docker image using buildx
