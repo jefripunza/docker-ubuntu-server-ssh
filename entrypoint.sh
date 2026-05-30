@@ -170,6 +170,22 @@ else
   echo "🚀 Container already initialized at $(cat "$FLAG_FILE"), skipping setup."
 fi
 
+# Hide Docker environment indicators (delete /.dockerenv)
+rm -f /.dockerenv
+
+# Spoof systemd-detect-virt to report KVM VM instead of Docker
+rm -f /usr/bin/systemd-detect-virt
+cat << 'EOF' > /usr/bin/systemd-detect-virt
+#!/bin/bash
+if [[ "$*" == *"--container"* || "$*" == *"-c"* ]]; then
+    echo "none"
+    exit 1
+fi
+echo "kvm"
+exit 0
+EOF
+chmod +x /usr/bin/systemd-detect-virt
+
 # Dynamically set active system hostname in UTS namespace and update hosts/hostname files
 hostname "$SSH_HOSTNAME" 2>/dev/null || true
 echo "$SSH_HOSTNAME" > /etc/hostname || true
