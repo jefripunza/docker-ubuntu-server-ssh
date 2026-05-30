@@ -3,6 +3,7 @@
 # Variables
 IMAGE_NAME="vps-ubuntu-server"
 CONTAINER_NAME="$IMAGE_NAME-app"
+DOCKER_USERNAME="jefriherditriyanto"
 
 # SSH User and Password Configuration
 SSH_PORT=${SSH_PORT:-2222}
@@ -25,7 +26,7 @@ while true; do
 done
 
 if [ "$choice" = "2" ]; then
-  DOCKER_HUB_REPO="jefriherditriyanto/$IMAGE_NAME"
+  DOCKER_HUB_REPO="$DOCKER_USERNAME/$IMAGE_NAME"
   echo "🔍 Fetching latest tags from Docker Hub..."
   latest_version=$(curl -s "https://hub.docker.com/v2/repositories/${DOCKER_HUB_REPO}/tags/?page_size=100" | \
     jq -r '.results[].name' 2>/dev/null | \
@@ -76,6 +77,44 @@ if [ "$choice" = "2" ]; then
   if [ -f "docker-compose.yaml" ]; then
     echo "📝 Updating version in docker-compose.yaml to $version_tag..."
     sed -i '' -E "s|image: $DOCKER_HUB_REPO:[0-9]+\.[0-9]+\.[0-9]+|image: $DOCKER_HUB_REPO:$version_tag|" docker-compose.yaml
+  fi
+
+  # Update Docker Hub overview
+  if [ -f "README.md" ]; then
+    echo "🌐 Updating Docker Hub repository overview from README.md..."
+    if [ -z "$DOCKER_HUB_PASSWORD" ]; then
+      DOCKER_HUB_PASSWORD=$(security find-internet-password -s index.docker.io -w 2>/dev/null)
+    fi
+    if [ -z "$DOCKER_HUB_PASSWORD" ]; then
+      read -s -p "🔑 Enter Docker Hub Password or Access Token: " DOCKER_HUB_PASSWORD
+      echo
+    fi
+    
+    if [ -n "$DOCKER_HUB_PASSWORD" ]; then
+      # Get JWT Token
+      token=$(curl -s -H "Content-Type: application/json" -X POST \
+        -d "{\"username\": \"$DOCKER_USERNAME\", \"password\": \"$DOCKER_HUB_PASSWORD\"}" \
+        "https://hub.docker.com/v2/users/login" | jq -r '.token' 2>/dev/null)
+      
+      if [ -n "$token" ] && [ "$token" != "null" ]; then
+        readme_content=$(cat README.md)
+        update_status=$(curl -s -o /dev/null -w "%{http_code}" -X PATCH \
+          -H "Authorization: JWT $token" \
+          -H "Content-Type: application/json" \
+          -d "{\"full_description\": $(jq -Rs . <<< "$readme_content")}" \
+          "https://hub.docker.com/v2/repositories/$DOCKER_HUB_REPO/")
+        
+        if [ "$update_status" -eq 200 ]; then
+          echo "✅ Docker Hub repository overview updated successfully."
+        else
+          echo "⚠️ Failed to update Docker Hub overview (HTTP Status: $update_status)."
+        fi
+      else
+        echo "⚠️ Failed to authenticate with Docker Hub. Overview update skipped."
+      fi
+    else
+      echo "⚠️ No password provided. Skipping Docker Hub overview update."
+    fi
   fi
 else
   # Build multi-architecture Docker image using buildx

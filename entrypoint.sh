@@ -402,4 +402,4 @@ echo " ------------------------------------------"
 
 # Run ttyd server
 echo "🚀 Starting ttyd server..."
-exec ttyd -W -c "$SSH_USER":"$SSH_PASSWORD" -p 6080 su - "$SSH_USER"
+exec ttyd -W -c "$SSH_USER":"$SSH_PASSWORD" -p "$TTYD_PORT" su - "$SSH_USER"
