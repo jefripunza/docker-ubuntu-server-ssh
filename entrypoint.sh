@@ -3,6 +3,10 @@
 # Delete entrypoint
 rm /entrypoint.sh
 
+# Configure ping group range to allow unprivileged pinging inside container
+sysctl -w net.ipv4.ping_group_range="0 2147483647" 2>/dev/null || true
+
+
 # Default values if environment variables are not set
 SSH_PORT=${SSH_PORT:-2222}
 TTYD_PORT=${TTYD_PORT:-6080}
